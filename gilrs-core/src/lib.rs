@@ -53,6 +53,7 @@ pub enum EventType {
     ButtonPressed(EvCode),
     ButtonReleased(EvCode),
     AxisValueChanged(i32, EvCode),
+    RelativeEvent(i32, EvCode),
     Connected,
     Disconnected,
 }
