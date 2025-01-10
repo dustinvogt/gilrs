@@ -352,11 +352,12 @@ impl Gamepad {
     }
 
     pub fn is_ff_supported(&self) -> bool {
-        false
+        // on Chrome and Safari, but not so well on Firefox apparently
+        true
     }
 
     pub fn ff_device(&self) -> Option<FfDevice> {
-        None
+        Some(FfDevice::new(self.gamepad.vibration_actuator()))
     }
 
     pub fn buttons(&self) -> &[EvCode] {

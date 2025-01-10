@@ -24,7 +24,10 @@ env_logger = "0.11.5"
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd"))'.dependencies]
 libudev-sys = "0.1.4"
 libc = "0.2"
-nix = { version = "0.29.0", default-features = false, features = ["ioctl", "event"] }
+nix = { version = "0.29.0", default-features = false, features = [
+    "ioctl",
+    "event",
+] }
 vec_map = "0.8"
 inotify = { version = "0.11.0", default-features = false }
 
@@ -41,7 +44,7 @@ windows = { version = ">=0.44, <=0.58", optional = true, features = [
     "Foundation_Collections",
     "Devices_Power",
     "System_Power",
-    "Gaming_Input_ForceFeedback"
+    "Gaming_Input_ForceFeedback",
 ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -50,6 +53,12 @@ web-sys = { version = "0.3", features = [
     "Gamepad",
     "GamepadButton",
     "GamepadMappingType",
+    "GamepadHapticActuator",
+    "GamepadHapticActuatorType",
+    "GamepadHapticEffectType",
+    "GamepadHapticsResult",
+    "GamepadHapticActuatorType",
+    "GamepadEffectParameters",
     "Window",
     "Navigator",
     "DomException",
