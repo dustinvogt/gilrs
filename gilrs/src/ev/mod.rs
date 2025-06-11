@@ -138,6 +138,18 @@ pub enum Button {
     DPadDown = BTN_DPAD_DOWN,
     DPadLeft = BTN_DPAD_LEFT,
     DPadRight = BTN_DPAD_RIGHT,
+    // Misc
+    Misc1 = BTN_MISC1,
+    RightPaddle1 = BTN_RIGHT_PADDLE1,
+    LeftPaddle1 = BTN_LEFT_PADDLE1,
+    RightPaddle2 = BTN_RIGHT_PADDLE2,
+    LeftPaddle2 = BTN_LEFT_PADDLE2,
+    Touchpad = BTN_TOUCHPAD,
+    Misc2 = BTN_MISC2,
+    Misc3 = BTN_MISC3,
+    Misc4 = BTN_MISC4,
+    Misc5 = BTN_MISC5,
+    Misc6 = BTN_MISC6,
 
     #[default]
     Unknown = BTN_UNKNOWN,
