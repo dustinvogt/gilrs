@@ -2,7 +2,6 @@
 
 --filter
     Windows.Devices.Power.BatteryReport
-    Windows.Foundation.Collections.IVectorView
     Windows.Foundation.EventHandler
     Windows.Foundation.IReference
     Windows.Gaming.Input.ForceFeedback.ForceFeedbackMotor
