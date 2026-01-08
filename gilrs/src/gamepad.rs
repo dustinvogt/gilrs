@@ -626,6 +626,7 @@ pub struct GilrsBuilder {
     update_state: bool,
     env_mappings: bool,
     included_mappings: bool,
+    force_feedback: bool,
 }
 
 impl GilrsBuilder {
@@ -639,6 +640,7 @@ impl GilrsBuilder {
             update_state: true,
             env_mappings: true,
             included_mappings: true,
+            force_feedback: true,
         }
     }
 
@@ -647,6 +649,13 @@ impl GilrsBuilder {
     /// filters with default parameters. Defaults to `true`.
     pub fn with_default_filters(mut self, default_filters: bool) -> Self {
         self.default_filters = default_filters;
+
+        self
+    }
+
+    /// If `true`, enables force feedback support. Defaults to `true`.
+    pub fn with_force_feedback(mut self, enable_ff: bool) -> Self {
+        self.force_feedback = enable_ff;
 
         self
     }
@@ -726,7 +735,7 @@ impl GilrsBuilder {
             Err(_) => unimplemented!(),
         };
 
-        let (tx, rx) = server::init();
+        let (tx, rx) = server::init(self.force_feedback);
 
         let mut gilrs = Gilrs {
             inner,
