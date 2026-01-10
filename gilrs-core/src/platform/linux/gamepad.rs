@@ -986,6 +986,10 @@ impl Gamepad {
     pub fn name(&self) -> &str {
         &self.name
     }
+ 
+    pub fn devpath(&self) -> &str {
+        &self.devpath
+    }
 
     pub fn uuid(&self) -> Uuid {
         self.uuid

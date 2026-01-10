@@ -221,6 +221,23 @@ impl Gamepad {
         self.inner.axis_info(nec.0)
     }
 }
+ 
+#[cfg(target_os = "linux")]
+use std::path::Path;
+
+#[cfg(target_os = "linux")]
+pub trait GamepadExt {
+    /// Returns the device node of gamepad.
+    fn devpath(&self) -> &Path;
+}
+
+#[cfg(target_os = "linux")]
+impl GamepadExt for Gamepad {
+    /// Returns the device node of gamepad.
+    fn devpath(&self) -> &Path {
+        Path::new(self.inner.devpath())
+    }
+}
 
 #[cfg(feature = "serde-serialize")]
 use serde::{Deserialize, Serialize};

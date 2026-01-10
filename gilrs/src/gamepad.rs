@@ -976,6 +976,25 @@ impl Gamepad<'_> {
     }
 }
 
+#[cfg(target_os = "linux")]
+use std::path::Path;
+#[cfg(target_os = "linux")]
+use gilrs_core::GamepadExt as CoreGamepadExt;
+ 
+#[cfg(target_os = "linux")]
+pub trait GamepadExt {
+    /// Returns the device node of gamepad.
+    fn devpath(&self) -> &Path;
+}
+
+#[cfg(target_os = "linux")]
+impl GamepadExt for Gamepad<'_> {
+    /// Returns the device node of gamepad.
+    fn devpath(&self) -> &Path {
+        CoreGamepadExt::devpath(self.inner)
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct GamepadData {
     state: GamepadState,
