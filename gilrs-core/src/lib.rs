@@ -221,7 +221,7 @@ impl Gamepad {
         self.inner.axis_info(nec.0)
     }
 }
- 
+
 #[cfg(target_os = "linux")]
 use std::path::Path;
 

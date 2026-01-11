@@ -148,6 +148,7 @@ pub struct Gilrs {
 impl Gilrs {
     /// Creates new `Gilrs` with default settings. See [`GilrsBuilder`](struct.GilrsBuilder.html)
     /// for more details.
+    #[allow(clippy::result_large_err)]
     pub fn new() -> Result<Self, Error> {
         GilrsBuilder::new().build()
     }
@@ -214,7 +215,7 @@ impl Gilrs {
         if let Ok(msg) = self.rx.try_recv() {
             return match msg {
                 FfMessage::EffectCompleted { event } => Some(event),
-            }
+            };
         }
         if let Some(ev) = self.events.pop_front() {
             Some(ev)
@@ -467,7 +468,7 @@ impl Gilrs {
     ///     # break;
     /// }
     /// ```
-    pub fn gamepad(&self, id: GamepadId) -> Gamepad {
+    pub fn gamepad(&self, id: GamepadId) -> Gamepad<'_> {
         Gamepad {
             inner: self.inner.gamepad(id.0).unwrap(),
             data: &self.gamepads_data[id.0],
@@ -703,6 +704,7 @@ impl GilrsBuilder {
     }
 
     /// Creates `Gilrs`.
+    #[allow(clippy::result_large_err)]
     pub fn build(mut self) -> Result<Gilrs, Error> {
         if self.included_mappings {
             self.mappings.add_included_mappings();
@@ -977,10 +979,10 @@ impl Gamepad<'_> {
 }
 
 #[cfg(target_os = "linux")]
-use std::path::Path;
-#[cfg(target_os = "linux")]
 use gilrs_core::GamepadExt as CoreGamepadExt;
- 
+#[cfg(target_os = "linux")]
+use std::path::Path;
+
 #[cfg(target_os = "linux")]
 pub trait GamepadExt {
     /// Returns the device node of gamepad.
@@ -1020,8 +1022,8 @@ impl GamepadData {
                     Ok(result) => result,
                     Err(e) => {
                         warn!(
-                            "Unable to parse SDL mapping for UUID {uuid}\n\t{e:?}\n\tDefault mapping \
-                             will be used.",
+                            "Unable to parse SDL mapping for UUID {uuid}\n\t{e:?}\n\tDefault \
+                             mapping will be used.",
                         );
                         Mapping::default(gamepad)
                     }
@@ -1193,6 +1195,7 @@ fn btn_value(info: &AxisInfo, val: i32) -> f32 {
 /// Error type which can be returned when creating `Gilrs`.
 #[non_exhaustive]
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Error {
     /// Gilrs does not support the current platform, but you can use dummy context from this error if
     /// gamepad input is not essential.
