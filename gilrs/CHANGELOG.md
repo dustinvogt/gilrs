@@ -3,6 +3,19 @@ Change Log
 
 See also [gilrs-core changelog](../gilrs-core/CHANGELOG.md).
 
+v0.11.1 - 2026-01-11
+----------
+
+### Changed
+
+- Updated bundled mappings. (!167)
+
+### Added
+
+- Added `LinuxGamepadExt` trait with `devpath` method. (!166, !167)
+- It is now possible to disable force feedback support
+  via `GilrsBuilder::with_force_feedback`. (!165)
+
 v0.11.0 - 2024-09-15
 ----------
 

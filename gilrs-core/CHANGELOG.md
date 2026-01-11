@@ -1,6 +1,21 @@
 Change Log
 ==========
 
+v0.6.7 - 2026-01-11
+----------
+
+### Changed
+
+- macOS: Switched to `objc2-core-foundation` and `objc2-io-kit`. (!163)
+
+### Added
+
+- Added `LinuxGamepadExt` trait with `devpath` method. (!166, !167)
+
+### Fixed
+
+- Linux: Handle NULL returned by `udev_device_get_syspath`. (!167)
+
 v0.6.6 - 2025-09-28
 ----------
 
