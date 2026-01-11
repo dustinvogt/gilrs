@@ -225,14 +225,15 @@ impl Gamepad {
 #[cfg(target_os = "linux")]
 use std::path::Path;
 
+/// Linux specific extension to `Gamepad`.
 #[cfg(target_os = "linux")]
-pub trait GamepadExt {
+pub trait LinuxGamepadExt {
     /// Returns the device node of gamepad.
     fn devpath(&self) -> &Path;
 }
 
 #[cfg(target_os = "linux")]
-impl GamepadExt for Gamepad {
+impl LinuxGamepadExt for Gamepad {
     /// Returns the device node of gamepad.
     fn devpath(&self) -> &Path {
         Path::new(self.inner.devpath())

@@ -142,6 +142,6 @@ pub use crate::gamepad::{
 };
 
 #[cfg(target_os = "linux")]
-pub use crate::gamepad::GamepadExt;
+pub use crate::gamepad::LinuxGamepadExt;
 
 pub use crate::mapping::{MappingData as Mapping, MappingError};
