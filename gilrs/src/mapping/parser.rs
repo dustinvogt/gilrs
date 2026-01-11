@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::ev::{Axis, AxisOrBtn, Button};
 
 // Must be sorted!
-static AXES_SDL: [&str; 31] = [
+static AXES_SDL: [&str; 36] = [
     "a",
     "b",
     "back",
@@ -29,6 +29,11 @@ static AXES_SDL: [&str; 31] = [
     "lefty",
     "leftz",
     "misc1",
+    "misc2",
+    "misc3",
+    "misc4",
+    "misc5",
+    "misc6",
     "paddle1",
     "paddle2",
     "paddle3",
@@ -45,7 +50,7 @@ static AXES_SDL: [&str; 31] = [
     "y",
     "z",
 ];
-static AXES: [AxisOrBtn; 31] = [
+static AXES: [AxisOrBtn; 36] = [
     AxisOrBtn::Btn(Button::South),
     AxisOrBtn::Btn(Button::East),
     AxisOrBtn::Btn(Button::Select),
@@ -61,11 +66,16 @@ static AXES: [AxisOrBtn; 31] = [
     AxisOrBtn::Axis(Axis::LeftStickX),
     AxisOrBtn::Axis(Axis::LeftStickY),
     AxisOrBtn::Axis(Axis::LeftZ),
-    AxisOrBtn::Btn(Button::Unknown),
-    AxisOrBtn::Btn(Button::Unknown),
-    AxisOrBtn::Btn(Button::Unknown),
-    AxisOrBtn::Btn(Button::Unknown),
-    AxisOrBtn::Btn(Button::Unknown),
+    AxisOrBtn::Btn(Button::Misc1),
+    AxisOrBtn::Btn(Button::Misc2),
+    AxisOrBtn::Btn(Button::Misc3),
+    AxisOrBtn::Btn(Button::Misc4),
+    AxisOrBtn::Btn(Button::Misc5),
+    AxisOrBtn::Btn(Button::Misc6),
+    AxisOrBtn::Btn(Button::RightPaddle1),
+    AxisOrBtn::Btn(Button::LeftPaddle1),
+    AxisOrBtn::Btn(Button::RightPaddle2),
+    AxisOrBtn::Btn(Button::LeftPaddle2),
     AxisOrBtn::Btn(Button::RightTrigger),
     AxisOrBtn::Btn(Button::RightThumb),
     AxisOrBtn::Btn(Button::RightTrigger2),
@@ -73,7 +83,7 @@ static AXES: [AxisOrBtn; 31] = [
     AxisOrBtn::Axis(Axis::RightStickY),
     AxisOrBtn::Axis(Axis::RightZ),
     AxisOrBtn::Btn(Button::Start),
-    AxisOrBtn::Btn(Button::Unknown),
+    AxisOrBtn::Btn(Button::Touchpad),
     AxisOrBtn::Btn(Button::West),
     AxisOrBtn::Btn(Button::North),
     AxisOrBtn::Btn(Button::Z),
