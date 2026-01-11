@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::ev::{Axis, AxisOrBtn, Button};
 
 // Must be sorted!
-static AXES_SDL: [&str; 31] = [
+static AXES_SDL: [&str; 32] = [
     "a",
     "b",
     "back",
@@ -29,6 +29,7 @@ static AXES_SDL: [&str; 31] = [
     "lefty",
     "leftz",
     "misc1",
+    "misc2",
     "paddle1",
     "paddle2",
     "paddle3",
@@ -45,7 +46,7 @@ static AXES_SDL: [&str; 31] = [
     "y",
     "z",
 ];
-static AXES: [AxisOrBtn; 31] = [
+static AXES: [AxisOrBtn; 32] = [
     AxisOrBtn::Btn(Button::South),
     AxisOrBtn::Btn(Button::East),
     AxisOrBtn::Btn(Button::Select),
@@ -61,6 +62,7 @@ static AXES: [AxisOrBtn; 31] = [
     AxisOrBtn::Axis(Axis::LeftStickX),
     AxisOrBtn::Axis(Axis::LeftStickY),
     AxisOrBtn::Axis(Axis::LeftZ),
+    AxisOrBtn::Btn(Button::Unknown),
     AxisOrBtn::Btn(Button::Unknown),
     AxisOrBtn::Btn(Button::Unknown),
     AxisOrBtn::Btn(Button::Unknown),
