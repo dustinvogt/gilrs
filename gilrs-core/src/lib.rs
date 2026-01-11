@@ -250,6 +250,7 @@ use serde::{Deserialize, Serialize};
 pub struct EvCode(platform::EvCode);
 
 impl EvCode {
+    /// Return platform-specific event code packed into a single `u32`.
     pub fn into_u32(self) -> u32 {
         self.0.into_u32()
     }
