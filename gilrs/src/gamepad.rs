@@ -6,16 +6,11 @@
 // copied, modified, or distributed except according to those terms.
 
 use crate::{
-    ev::{
-        state::{AxisData, ButtonData, GamepadState},
-        Axis, AxisOrBtn, Button, Code, Event, EventType,
-    },
-    ff::{
-        server::{self, FfMessage, Message},
-        Error as FfError,
-    },
-    mapping::{Mapping, MappingData, MappingDb},
-    utils, MappingError,
+    MappingError, ev::{
+        Axis, AxisOrBtn, Button, Code, Event, EventType, state::{AxisData, ButtonData, GamepadState}
+    }, ff::{
+        Error as FfError, server::{self, FfMessage, Message}
+    }, mapping::{MapBehavior, Mapping, MappingData, MappingDb}, utils
 };
 
 use gilrs_core::{
@@ -235,26 +230,29 @@ impl Gilrs {
                 }) => {
                     trace!("Original event: {:?}", event);
                     let id = GamepadId(id);
-
                     let event = match event_type {
                         RawEventType::ButtonPressed(nec) => {
+                            let mut val = 1.0; // A fully pressed button
+                            if let Some(d) = self.gamepads_data.get(id.0) {
+                                val = d.mapping.translate_input(&nec,val)
+                            }
                             let nec = Code(nec);
                             match self.gamepad(id).axis_or_btn_name(nec) {
                                 Some(AxisOrBtn::Btn(b)) => {
                                     self.events.push_back(Event {
                                         id,
                                         time,
-                                        event: EventType::ButtonChanged(b, 1.0, nec),
+                                        event: EventType::ButtonChanged(b, val, nec),
                                     });
 
                                     EventType::ButtonPressed(b, nec)
                                 }
-                                Some(AxisOrBtn::Axis(a)) => EventType::AxisChanged(a, 1.0, nec),
+                                Some(AxisOrBtn::Axis(a)) => EventType::AxisChanged(a, val, nec),
                                 None => {
                                     self.events.push_back(Event {
                                         id,
                                         time,
-                                        event: EventType::ButtonChanged(Button::Unknown, 1.0, nec),
+                                        event: EventType::ButtonChanged(Button::Unknown, val, nec),
                                     });
 
                                     EventType::ButtonPressed(Button::Unknown, nec)
@@ -262,23 +260,27 @@ impl Gilrs {
                             }
                         }
                         RawEventType::ButtonReleased(nec) => {
+                            let mut val = 0.0; // A fully released button
+                            if let Some(d) = self.gamepads_data.get(id.0) {
+                                val = d.mapping.translate_input(&nec,val)
+                            }
                             let nec = Code(nec);
                             match self.gamepad(id).axis_or_btn_name(nec) {
                                 Some(AxisOrBtn::Btn(b)) => {
                                     self.events.push_back(Event {
                                         id,
                                         time,
-                                        event: EventType::ButtonChanged(b, 0.0, nec),
+                                        event: EventType::ButtonChanged(b, val, nec),
                                     });
 
                                     EventType::ButtonReleased(b, nec)
                                 }
-                                Some(AxisOrBtn::Axis(a)) => EventType::AxisChanged(a, 0.0, nec),
+                                Some(AxisOrBtn::Axis(a)) => EventType::AxisChanged(a, val, nec),
                                 None => {
                                     self.events.push_back(Event {
                                         id,
                                         time,
-                                        event: EventType::ButtonChanged(Button::Unknown, 0.0, nec),
+                                        event: EventType::ButtonChanged(Button::Unknown, val, nec),
                                     });
 
                                     EventType::ButtonReleased(Button::Unknown, nec)
@@ -288,11 +290,17 @@ impl Gilrs {
                         RawEventType::AxisValueChanged(val, nec) => {
                             // Let's trust at least our backend code
                             let axis_info = *self.gamepad(id).inner.axis_info(nec).unwrap();
+
+                            let bhv = match self.gamepads_data.get(id.0) {
+                                Some(d) => d.mapping.get_map_behavior_or_default(&nec),
+                                None => Default::default(),
+                            };
+
                             let nec = Code(nec);
 
                             match self.gamepad(id).axis_or_btn_name(nec) {
                                 Some(AxisOrBtn::Btn(b)) => {
-                                    let val = btn_value(&axis_info, val);
+                                    let val = btn_value(&axis_info, val, bhv);
 
                                     if val >= self.axis_to_btn_pressed
                                         && !self.gamepad(id).state().is_pressed(nec)
@@ -319,11 +327,11 @@ impl Gilrs {
                                     }
                                 }
                                 Some(AxisOrBtn::Axis(a)) => {
-                                    EventType::AxisChanged(a, axis_value(&axis_info, val, a), nec)
+                                    EventType::AxisChanged(a, axis_value(&axis_info, val, a, bhv), nec)
                                 }
                                 None => EventType::AxisChanged(
                                     Axis::Unknown,
-                                    axis_value(&axis_info, val, Axis::Unknown),
+                                    axis_value(&axis_info, val, Axis::Unknown, bhv),
                                     nec,
                                 ),
                             }
@@ -1111,12 +1119,12 @@ impl GamepadData {
 
     /// Returns `Code` associated with `btn`.
     pub fn button_code(&self, btn: Button) -> Option<Code> {
-        self.mapping.map_rev(&AxisOrBtn::Btn(btn)).map(Code)
+        self.mapping.map_rev(AxisOrBtn::Btn(btn)).map(Code)
     }
 
     /// Returns `Code` associated with `axis`.
     pub fn axis_code(&self, axis: Axis) -> Option<Code> {
-        self.mapping.map_rev(&AxisOrBtn::Axis(axis)).map(Code)
+        self.mapping.map_rev(AxisOrBtn::Axis(axis)).map(Code)
     }
 }
 
@@ -1152,7 +1160,7 @@ impl Display for GamepadId {
     }
 }
 
-fn axis_value(info: &AxisInfo, val: i32, axis: Axis) -> f32 {
+fn axis_value(info: &AxisInfo, val: i32, axis: Axis, modifier: MapBehavior) -> f32 {
     let mut range = info.max as f32 - info.min as f32;
     let mut val = val as f32 - info.min as f32;
 
@@ -1175,13 +1183,17 @@ fn axis_value(info: &AxisInfo, val: i32, axis: Axis) -> f32 {
         val = -val;
     }
 
+    val = modifier.translate(val);
+
     utils::clamp(val, -1.0, 1.0)
 }
 
-fn btn_value(info: &AxisInfo, val: i32) -> f32 {
+fn btn_value(info: &AxisInfo, val: i32, modifier: MapBehavior) -> f32 {
     let range = info.max as f32 - info.min as f32;
     let mut val = val as f32 - info.min as f32;
     val /= range;
+
+    val = modifier.translate(val);
 
     utils::clamp(val, 0.0, 1.0)
 }
@@ -1240,7 +1252,7 @@ mod tests {
             deadzone: None,
         };
         let axis = Axis::LeftStickY;
-        assert_eq!(0., axis_value(&info, 127, axis));
+        assert_eq!(0., axis_value(&info, 127, axis, Default::default()));
     }
 
     #[test]
@@ -1252,12 +1264,12 @@ mod tests {
         };
         let axis = Axis::LeftStickY;
 
-        assert_eq!(0., axis_value(&info, -1, axis));
-        assert_eq!(0., axis_value(&info, 0, axis));
-        assert_eq!(0., axis_value(&info, 1, axis));
+        assert_eq!(0., axis_value(&info, -1, axis, Default::default()));
+        assert_eq!(0., axis_value(&info, 0, axis, Default::default()));
+        assert_eq!(0., axis_value(&info, 1, axis, Default::default()));
 
-        assert_eq!(1.0, axis_value(&info, i32::MIN, axis));
-        assert_eq!(-1.0, axis_value(&info, i32::MAX, axis));
+        assert_eq!(1.0, axis_value(&info, i32::MIN, axis, Default::default()));
+        assert_eq!(-1.0, axis_value(&info, i32::MAX, axis, Default::default()));
     }
 
     #[test]
@@ -1268,11 +1280,11 @@ mod tests {
             deadzone: None,
         };
 
-        assert_eq!(0.5, btn_value(&info, -1));
-        assert_eq!(0.5, btn_value(&info, 0));
-        assert_eq!(0.5, btn_value(&info, 1));
+        assert_eq!(0.5, btn_value(&info, -1, Default::default()));
+        assert_eq!(0.5, btn_value(&info, 0, Default::default()));
+        assert_eq!(0.5, btn_value(&info, 1, Default::default()));
 
-        assert_eq!(0.0, btn_value(&info, i32::MIN));
-        assert_eq!(1.0, btn_value(&info, i32::MAX));
+        assert_eq!(0.0, btn_value(&info, i32::MIN, Default::default()));
+        assert_eq!(1.0, btn_value(&info, i32::MAX, Default::default()));
     }
 }

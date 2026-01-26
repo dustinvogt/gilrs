@@ -203,7 +203,7 @@ impl Button {
 }
 
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
 /// Gamepad's elements which state can be represented by value from -1.0 to 1.0.
 ///
@@ -217,6 +217,7 @@ pub enum Axis {
     RightZ = AXIS_RIGHTZ,
     DPadX = AXIS_DPADX,
     DPadY = AXIS_DPADY,
+    #[default]
     Unknown = AXIS_UNKNOWN,
 }
 

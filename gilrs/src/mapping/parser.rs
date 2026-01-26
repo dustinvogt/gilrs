@@ -10,6 +10,7 @@ use std::fmt::{self, Display};
 use uuid::Uuid;
 
 use crate::ev::{Axis, AxisOrBtn, Button};
+use crate::mapping::{MapBehavior, MapEntry, RangeBehavior};
 
 // Must be sorted!
 static AXES_SDL: [&str; 32] = [
@@ -46,6 +47,8 @@ static AXES_SDL: [&str; 32] = [
     "y",
     "z",
 ];
+
+/// NOTE: Contains axes and buttons.
 static AXES: [AxisOrBtn; 32] = [
     AxisOrBtn::Btn(Button::South),
     AxisOrBtn::Btn(Button::East),
@@ -170,18 +173,18 @@ impl<'a> Parser<'a> {
             return Ok(Token::Platform(value));
         }
 
-        let mut input = AxisRange::Full;
-        let mut output = AxisRange::Full;
+        let mut input = RangeBehavior::Full;
+        let mut output = RangeBehavior::Full;
         let mut inverted = false;
         let mut is_axis = false;
 
         let key = match key.get(0..1) {
             Some("+") => {
-                output = AxisRange::UpperHalf;
+                output = RangeBehavior::UpperHalf;
                 &key[1..]
             }
             Some("-") => {
-                output = AxisRange::LowerHalf;
+                output = RangeBehavior::LowerHalf;
                 &key[1..]
             }
             _ => key,
@@ -190,7 +193,7 @@ impl<'a> Parser<'a> {
         let from = match value.get(0..1) {
             Some("+") if value.get(1..2) == Some("a") => {
                 is_axis = true;
-                input = AxisRange::UpperHalf;
+                input = RangeBehavior::UpperHalf;
 
                 if value.get((value.len() - 1)..) == Some("~") {
                     inverted = true;
@@ -202,7 +205,7 @@ impl<'a> Parser<'a> {
             }
             Some("-") if value.get(1..2) == Some("a") => {
                 is_axis = true;
-                input = AxisRange::LowerHalf;
+                input = RangeBehavior::LowerHalf;
 
                 if value.get((value.len() - 1)..) == Some("~") {
                     inverted = true;
@@ -243,8 +246,13 @@ impl<'a> Parser<'a> {
                 return Ok(Token::HatMapping {
                     hat,
                     direction,
-                    to: AXES[idx],
-                    output,
+                    entry: MapEntry {
+                        target: AXES[idx],
+                        behavior: MapBehavior { // Only output filtering is used for a hat map.
+                            output,
+                            ..Default::default()
+                        }
+                    }
                 });
             }
             _ => return Err(Error::new(ErrorKind::InvalidValue, pos)),
@@ -258,11 +266,15 @@ impl<'a> Parser<'a> {
                 .map_err(|_| Error::new(ErrorKind::UnknownAxis, pos))?;
 
             Ok(Token::AxisMapping {
-                from,
-                to: AXES[idx],
-                input,
-                output,
-                inverted,
+                source: from,
+                entry: MapEntry {
+                    target: AXES[idx],
+                    behavior: MapBehavior { // All fields are used for axes.
+                        input,
+                        output,
+                        inverted
+                    }
+                }
             })
         } else {
             let idx = AXES_SDL
@@ -270,9 +282,14 @@ impl<'a> Parser<'a> {
                 .map_err(|_| Error::new(ErrorKind::UnknownButton, pos))?;
 
             Ok(Token::ButtonMapping {
-                from,
-                to: AXES[idx],
-                output,
+                source: from,
+                entry: MapEntry {
+                    target: AXES[idx],
+                    behavior: MapBehavior { // Only output filtering is is used for buttons.
+                        output,
+                        ..Default::default()
+                    }
+                }
             })
         }
     }
@@ -290,37 +307,21 @@ pub enum Token<'a> {
     Uuid(Uuid),
     Platform(&'a str),
     Name(&'a str),
-    #[allow(dead_code)]
     AxisMapping {
-        from: u16,
-        to: AxisOrBtn,
-        input: AxisRange,
-        output: AxisRange,
-        inverted: bool,
+        source: u16,
+        entry: MapEntry,
     },
     ButtonMapping {
-        from: u16,
-        to: AxisOrBtn,
-        #[allow(dead_code)]
-        output: AxisRange,
+        source: u16,
+        entry: MapEntry
     },
     // This is just SDL representation, we will convert this to axis mapping later
     HatMapping {
         hat: u16,
         // ?
         direction: u16,
-        to: AxisOrBtn,
-        #[allow(dead_code)]
-        output: AxisRange,
+        entry: MapEntry
     },
-}
-
-#[repr(u8)]
-#[derive(Debug)]
-pub enum AxisRange {
-    LowerHalf,
-    UpperHalf,
-    Full,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]

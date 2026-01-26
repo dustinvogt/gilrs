@@ -44,7 +44,7 @@ const SDL_PLATFORM_NAME: &str = "Unknown";
 ///
 /// This struct is internal, `MappingData` is exported in public interface as `Mapping`.
 pub struct Mapping {
-    mappings: FnvHashMap<EvCode, AxisOrBtn>,
+    mappings: FnvHashMap<EvCode,MapEntry>,
     name: String,
     default: bool,
     hats_mapped: u8,
@@ -69,7 +69,7 @@ impl Mapping {
                 {
                     let mut map = FnvHashMap::default();
                     $(
-                        map.insert($key, $elem);
+                        map.insert($key, MapEntry::pass_through($elem));
                     )*
 
                     map
@@ -292,41 +292,41 @@ impl Mapping {
                 Token::Uuid(v) => uuid = Some(v),
 
                 Token::Name(name) => mapping.name = name.to_owned(),
-                Token::AxisMapping { from, to, .. } => {
-                    let axis = axes.get(from as usize).cloned();
+                Token::AxisMapping { source, entry } => {
+                    let axis = axes.get(source as usize).cloned();
                     if let Some(axis) = axis {
-                        mapping.mappings.insert(axis, to);
+                        mapping.mappings.insert(axis, entry);
                     } else {
                         warn!(
                             "SDL-mapping {} {}: Unknown axis a{}",
                             uuid.unwrap(),
                             mapping.name,
-                            from
+                            source
                         )
                     }
                 }
-                Token::ButtonMapping { from, to, .. } => {
-                    let btn = buttons.get(from as usize).cloned();
+                Token::ButtonMapping { source, entry } => {
+                    let btn = buttons.get(source as usize).cloned();
 
                     if let Some(btn) = btn {
-                        mapping.mappings.insert(btn, to);
+                        mapping.mappings.insert(btn, entry);
                     } else {
                         warn!(
                             "SDL-mapping {} {}: Unknown button b{}",
                             uuid.unwrap(),
                             mapping.name,
-                            from
+                            source
                         )
                     }
                 }
                 Token::HatMapping {
-                    hat, direction, to, ..
+                    hat, direction, entry, ..
                 } => {
                     if hat != 0 {
                         warn!(
                             "Hat mappings are only supported for dpads (requested to map hat \
                              {}.{} to {:?}",
-                            hat, direction, to
+                            hat, direction, entry
                         );
                     } else {
                         // We  don't have anything like "hat" in gilrs, so let's jus assume that
@@ -343,23 +343,27 @@ impl Mapping {
                             _ => return Err(ParseSdlMappingError::UnknownHatDirection),
                         };
 
-                        if to.is_button() {
-                            match to {
+                        if entry.target.is_button() {
+                            match entry.target {
                                 AxisOrBtn::Btn(Button::DPadLeft | Button::DPadRight) => {
                                     mapping
                                         .mappings
-                                        .insert(from_axis, AxisOrBtn::Axis(Axis::DPadX));
+                                        .insert(from_axis, MapEntry::pass_through(
+                                            AxisOrBtn::Axis(Axis::DPadX)
+                                        ));
                                 }
                                 AxisOrBtn::Btn(Button::DPadUp | Button::DPadDown) => {
                                     mapping
                                         .mappings
-                                        .insert(from_axis, AxisOrBtn::Axis(Axis::DPadY));
+                                        .insert(from_axis, MapEntry::pass_through(
+                                            AxisOrBtn::Axis(Axis::DPadY)
+                                        ));
                                 }
                                 _ => (),
                             }
-                            mapping.mappings.insert(from_btn, to);
+                            mapping.mappings.insert(from_btn, entry);
                         } else {
-                            mapping.mappings.insert(from_axis, to);
+                            mapping.mappings.insert(from_axis, entry);
                         }
 
                         mapping.hats_mapped |= direction as u8;
@@ -377,14 +381,17 @@ impl Mapping {
         mapped_btn: Button,
         buttons: &[EvCode],
         sdl_mappings: &mut String,
-        mappings: &mut FnvHashMap<EvCode, AxisOrBtn>,
+        mappings: &mut FnvHashMap<EvCode, MapEntry>,
     ) -> Result<(), MappingError> {
         let n_btn = buttons
             .iter()
             .position(|&x| x == ev_code)
             .ok_or(MappingError::InvalidCode(ev::Code(ev_code)))?;
         let _ = write!(sdl_mappings, "{}:b{},", ident, n_btn);
-        mappings.insert(ev_code, AxisOrBtn::Btn(mapped_btn));
+        let entry = MapEntry::pass_through(
+            AxisOrBtn::Btn(mapped_btn)
+        );
+        mappings.insert(ev_code, entry);
         Ok(())
     }
 
@@ -394,14 +401,17 @@ impl Mapping {
         mapped_axis: Axis,
         axes: &[EvCode],
         sdl_mappings: &mut String,
-        mappings: &mut FnvHashMap<EvCode, AxisOrBtn>,
+        mappings: &mut FnvHashMap<EvCode, MapEntry>,
     ) -> Result<(), MappingError> {
         let n_axis = axes
             .iter()
             .position(|&x| x == ev_code)
             .ok_or(MappingError::InvalidCode(ev::Code(ev_code)))?;
         let _ = write!(sdl_mappings, "{}:a{},", ident, n_axis);
-        mappings.insert(ev_code, AxisOrBtn::Axis(mapped_axis));
+        let entry = MapEntry::pass_through(
+            AxisOrBtn::Axis(mapped_axis)
+        );
+        mappings.insert(ev_code, entry);
         Ok(())
     }
 
@@ -410,11 +420,28 @@ impl Mapping {
     }
 
     pub fn map(&self, code: &EvCode) -> Option<AxisOrBtn> {
-        self.mappings.get(code).cloned()
+        match self.mappings.get(code) {
+            Some(entry) => Some(entry.target),
+            None => None,
+        }
     }
 
-    pub fn map_rev(&self, el: &AxisOrBtn) -> Option<EvCode> {
-        self.mappings.iter().find(|x| x.1 == el).map(|x| *x.0)
+    pub fn map_rev(&self, el: AxisOrBtn) -> Option<EvCode> {
+        self.mappings.iter().find(|x| x.1.target == el).map(|x| *x.0)
+    }
+
+    pub fn translate_input(&self, code: &EvCode, input: f32) -> f32 {
+        match self.mappings.get(code) {
+            Some(entry) => entry.behavior.translate(input),
+            None => input,
+        }
+    }
+
+    pub fn get_map_behavior_or_default(&self, code: &EvCode) -> MapBehavior {
+        match self.mappings.get(code) {
+            Some(entry) => entry.behavior,
+            None => Default::default(),
+        }
     }
 
     pub fn is_default(&self) -> bool {
@@ -727,5 +754,47 @@ mod tests {
             Some(TEST_STR),
             db.get(Uuid::parse_str("03000000260900008888000000010001").unwrap())
         );
+    }
+}
+
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
+pub struct MapBehavior {
+    pub input: RangeBehavior,
+    pub output: RangeBehavior,
+    pub inverted: bool,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
+struct MapEntry {
+    pub target: AxisOrBtn,
+    pub behavior: MapBehavior
+}
+
+#[repr(u8)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-serialize", derive(Serialize, Deserialize))]
+pub enum RangeBehavior {
+    LowerHalf,
+    UpperHalf,
+    #[default]
+    Full,
+}
+
+impl MapEntry {
+    /// Pass through describes an axis/button post processing that does no range adjustment or sign inversion.
+    /// This is the default behavior one would assume to be in effect when no SDL modifiers have been described.
+    fn pass_through(target: AxisOrBtn) -> Self {
+        Self {
+            target,
+            behavior: Default::default()
+        }
+    }
+}
+
+impl MapBehavior {
+    pub fn translate(&self,value: f32) -> f32 {
+        todo!();
     }
 }
