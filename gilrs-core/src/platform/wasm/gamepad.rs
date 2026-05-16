@@ -20,6 +20,21 @@ use crate::{AxisInfo, Event, EventType, PlatformError, PowerInfo};
 #[cfg(feature = "serde-serialize")]
 use serde::{Deserialize, Serialize};
 
+// fields for POV hat hack
+const BTN_DPAD_UP: usize = 12;
+const BTN_DPAD_DOWN: usize = 13;
+const BTN_DPAD_LEFT: usize = 14;
+const BTN_DPAD_RIGHT: usize = 15;
+
+const POV_HAT_UP: f64 = -1.0;
+const POV_HAT_UP_RIGHT: f64 = -5.0/7.0;
+const POV_HAT_RIGHT: f64 = -3.0/7.0;
+const POV_HAT_DOWN_RIGHT: f64 = -1.0/7.0;
+const POV_HAT_DOWN: f64 = 1.0/7.0;
+const POV_HAT_DOWN_LEFT: f64 = 3.0/7.0;
+const POV_HAT_LEFT: f64 = 5.0/7.0;
+const POV_HAT_UP_LEFT:f64 = 1.0;
+
 #[derive(Debug)]
 pub struct Gilrs {
     event_cache: VecDeque<Event>,
@@ -141,13 +156,44 @@ impl Gilrs {
                 }
 
                 let axes = gamepad.gamepad.axes();
+
+                // POV hat hack
+                if axes.length() as usize > 9 {
+                    let old_value = gamepad.mapping.axes()[9];
+                    let new_value = axes
+                        .get(9)
+                        .as_f64()
+                        .expect("axes() should be an array of f64");
+                    if !Self::approx_eq(old_value, new_value) {
+                        let old_pressed = Self::pov_hat_to_buttons(old_value);
+                        let new_pressed = Self::pov_hat_to_buttons(new_value);
+
+                        for old_press in old_pressed.iter() {
+                            if !new_pressed.contains(old_press) {
+                                let ev_code = crate::EvCode(gamepad.button_code(*old_press));
+                                self.event_cache
+                                    .push_back(Event::new(id, EventType::ButtonReleased(ev_code)))
+                            }
+                        }
+                        for new_press in new_pressed.iter() {
+                            if !old_pressed.contains(new_press) {
+                                let ev_code = crate::EvCode(gamepad.button_code(*new_press));
+                                self.event_cache
+                                    .push_back(Event::new(id, EventType::ButtonPressed(ev_code)))
+                            }
+                        }
+                    }
+                }
+
                 for axis_index in 0..gamepad.mapping.axes().len().min(axes.length() as usize) {
                     let old_value = gamepad.mapping.axes()[axis_index];
                     let new_value = axes
                         .get(axis_index as u32)
                         .as_f64()
                         .expect("axes() should be an array of f64");
-                    if old_value != new_value {
+                    // POV hat hack: don't register axis 9
+                    // can't if 9 { continue; } here or the app freezes while POV hat is held
+                    if old_value != new_value && axis_index != 9 {
                         let ev_code = crate::EvCode(gamepad.axis_code(axis_index));
                         let value = (new_value * i32::MAX as f64) as i32;
                         self.event_cache
@@ -189,6 +235,34 @@ impl Gilrs {
 
     pub fn last_gamepad_hint(&self) -> usize {
         self.gamepads.len()
+    }
+
+    pub fn approx_eq(lhs: f64, rhs: f64) -> bool {
+        return f64::abs(lhs - rhs) < 1e-4;
+    }
+
+    pub fn pov_hat_to_buttons(value: f64) -> Vec<usize> {
+        if value > 1.0001 {
+            vec![]
+        } else if Self::approx_eq(value, POV_HAT_UP) {
+            vec![BTN_DPAD_UP]
+        } else if Self::approx_eq(value, POV_HAT_RIGHT) {
+            vec![BTN_DPAD_RIGHT]
+        } else if Self::approx_eq(value, POV_HAT_DOWN) {
+            vec![BTN_DPAD_DOWN]
+        } else if Self::approx_eq(value, POV_HAT_LEFT) {
+            vec![BTN_DPAD_LEFT]
+        } else if Self::approx_eq(value, POV_HAT_UP_RIGHT) {
+            vec![BTN_DPAD_UP, BTN_DPAD_RIGHT]
+        } else if Self::approx_eq(value, POV_HAT_DOWN_RIGHT) {
+            vec![BTN_DPAD_DOWN, BTN_DPAD_RIGHT]
+        } else if Self::approx_eq(value, POV_HAT_DOWN_LEFT) {
+            vec![BTN_DPAD_DOWN, BTN_DPAD_LEFT]
+        } else if Self::approx_eq(value, POV_HAT_UP_LEFT) {
+            vec![BTN_DPAD_UP, BTN_DPAD_LEFT]
+        } else {
+            vec![]
+        }
     }
 }
 
